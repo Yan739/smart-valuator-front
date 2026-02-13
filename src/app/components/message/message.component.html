@@ -1,1 +1,6 @@
-<p>message.component works!</p>
+<div class="message" [ngClass]="{'user-message': message.isUser, 'bot-message': !message.isUser}">
+  <div class="message-content">
+    <p>{{ message.text }}</p>
+    <span class="timestamp">{{ message.timestamp | date:'shortTime' }}</span>
+  </div>
+</div>

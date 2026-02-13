@@ -1,22 +1,63 @@
-<mat-card class="chat-container">
-  <mat-card-content>
-    <mat-list class="message-list">
-      <mat-list-item *ngFor="let message of messages">
-        <div [ngClass]="message.sender">
-          <mat-icon matListIcon>{{ message.sender === 'user' ? 'person' : 'android' }}</mat-icon>
-          <div matLine>{{ message.text }}</div>
-        </div>
-      </mat-list-item>
-      <mat-list-item *ngIf="isLoading">
-        <mat-icon matListIcon>hourglass_empty</mat-icon>
-        <div matLine>Bot is thinking...</div>
-      </mat-list-item>
-    </mat-list>
-  </mat-card-content>
-  <mat-card-actions>
-    <mat-form-field appearance="outline" class="input-field">
-      <input matInput placeholder="Describe item, year, and condition (e.g., Item: iPhone 12, Year: 2020, Condition: 8/10)" [(ngModel)]="userInput" (keyup.enter)="sendMessage()">
-    </mat-form-field>
-    <button mat-raised-button color="primary" (click)="sendMessage()" [disabled]="isLoading">Send</button>
-  </mat-card-actions>
-</mat-card>
+<div class="chat-container">
+  <div class="chat-messages" #messagesContainer>
+    <app-message
+      *ngFor="let message of messages"
+      [message]="message">
+    </app-message>
+  </div>
+
+  <div class="valuation-form" *ngIf="showForm">
+    <h3>Describe your electronic item:</h3>
+    <form (ngSubmit)="submitValuation()">
+      <div class="form-group">
+        <label for="description">Item Description:</label>
+        <textarea
+          id="description"
+          [(ngModel)]="valuationRequest.description"
+          name="description"
+          placeholder="e.g., iPhone 12 Pro Max, 256GB, Space Gray"
+          required></textarea>
+      </div>
+
+      <div class="form-group">
+        <label for="year">Year of Manufacture:</label>
+        <input
+          type="number"
+          id="year"
+          [(ngModel)]="valuationRequest.yearOfManufacture"
+          name="yearOfManufacture"
+          min="1900"
+          max="2024"
+          required>
+      </div>
+
+      <div class="form-group">
+        <label for="condition">Condition:</label>
+        <select
+          id="condition"
+          [(ngModel)]="valuationRequest.condition"
+          name="condition"
+          required>
+          <option value="">Select condition</option>
+          <option value="mint">Mint</option>
+          <option value="excellent">Excellent</option>
+          <option value="good">Good</option>
+          <option value="fair">Fair</option>
+          <option value="poor">Poor</option>
+        </select>
+      </div>
+
+      <button type="submit" [disabled]="isLoading">Get Valuation</button>
+    </form>
+  </div>
+
+  <div class="chat-input">
+    <input
+      type="text"
+      [(ngModel)]="currentMessage"
+      (keyup.enter)="sendMessage()"
+      placeholder="Type your message..."
+      [disabled]="isLoading">
+    <button (click)="sendMessage()" [disabled]="isLoading">Send</button>
+  </div>
+</div>

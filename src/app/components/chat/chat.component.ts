@@ -1,76 +1,111 @@
-import { Component } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { MatIcon } from "@angular/material/icon";
-import { MatList, MatListItem } from "@angular/material/list";
-import { MatCardContent, MatCard, MatCardActions } from "@angular/material/card";
-import { MatFormField } from "@angular/material/input";
+import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { MessageComponent } from '../message/message.component';
 
 interface Message {
-  sender: 'user' | 'bot';
+  id: number;
   text: string;
+  isUser: boolean;
+  timestamp: Date;
 }
 
 interface ValuationRequest {
-  itemDescription: string;
+  description: string;
   yearOfManufacture: number;
   condition: string;
 }
 
 interface ValuationResponse {
   description: string;
-  profitability: string;
+  estimatedProfitability: number;
 }
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, MatIcon, MatList, MatListItem, MatCardContent, MatCard, MatCardActions, MatFormField],
+  imports: [CommonModule, FormsModule, HttpClientModule, MessageComponent],
   templateUrl: './chat.component.html',
-  styleUrls: ['./chat.component.css'],
+  styleUrls: ['./chat.component.scss']
 })
-export class ChatComponent {
+export class ChatComponent implements OnInit {
   messages: Message[] = [];
-  userInput = '';
+  currentMessage = '';
+  showForm = false;
   isLoading = false;
+  valuationRequest: ValuationRequest = {
+    description: '',
+    yearOfManufacture: 0,
+    condition: ''
+  };
+
+  private messageId = 0;
 
   constructor(private http: HttpClient) {}
 
+  ngOnInit() {
+    this.addBotMessage('Hello! I\'m Smart Valuator. I can help you get detailed descriptions and profitability estimates for electronic items. Would you like to valuate an item?');
+  }
+
   sendMessage() {
-    if (!this.userInput.trim()) return;
-
-    // Add user message
-    this.messages.push({ sender: 'user', text: this.userInput });
-
-    const input = this.userInput;
-    const itemMatch = input.match(/Item:\s*(.+?)(?:,|$)/i);
-    const yearMatch = input.match(/Year:\s*(\d+)/i);
-    const conditionMatch = input.match(/Condition:\s*(.+?)(?:,|$)/i);
-
-    if (!itemMatch || !yearMatch || !conditionMatch) {
-      this.messages.push({ sender: 'bot', text: 'Please provide input in the format: "Item: [description], Year: [year], Condition: [condition]"' });
-      this.userInput = '';
-      return;
+    if (this.currentMessage.trim()) {
+      this.addUserMessage(this.currentMessage);
+      this.processMessage(this.currentMessage);
+      this.currentMessage = '';
     }
+  }
 
-    const request: ValuationRequest = {
-      itemDescription: itemMatch[1].trim(),
-      yearOfManufacture: parseInt(yearMatch[1]),
-      condition: conditionMatch[1].trim()
-    };
+  private processMessage(message: string) {
+    const lowerMessage = message.toLowerCase();
 
-    this.isLoading = true;
-    this.http.post<ValuationResponse>('http://localhost:8080/api/valuate', request).subscribe(
-      response => {
-        this.messages.push({ sender: 'bot', text: `Description: ${response.description}\nProfitability: ${response.profitability}` });
-        this.isLoading = false;
-      },
-      error => {
-        this.messages.push({ sender: 'bot', text: 'Error: Unable to get valuation. Please try again.' });
-        this.isLoading = false;
-      }
-    );
+    if (lowerMessage.includes('valuate') || lowerMessage.includes('value') || lowerMessage.includes('yes')) {
+      this.showForm = true;
+      this.addBotMessage('Great! Please fill out the form below with details about your electronic item.');
+    } else if (lowerMessage.includes('help')) {
+      this.addBotMessage('I can provide detailed descriptions and estimated profitability for electronic items based on their year of manufacture and condition. Just say "valuate" to get started!');
+    } else {
+      this.addBotMessage('I\'m not sure what you mean. Say "valuate" if you\'d like to get an item valuation, or "help" for more information.');
+    }
+  }
 
-    this.userInput = '';
+  submitValuation() {
+    if (this.valuationRequest.description && this.valuationRequest.yearOfManufacture && this.valuationRequest.condition) {
+      this.isLoading = true;
+      this.showForm = false;
+
+      this.http.post<ValuationResponse>('http://localhost:8080/api/estimations', this.valuationRequest)
+        .subscribe({
+          next: (response) => {
+            this.addBotMessage(`Item Description: ${response.description}\n\nEstimated Profitability: $${response.estimatedProfitability.toFixed(2)}`);
+            this.isLoading = false;
+            this.valuationRequest = { description: '', yearOfManufacture: 0, condition: '' };
+          },
+          error: (error) => {
+            console.error('Error:', error);
+            this.addBotMessage('Sorry, I encountered an error while processing your request. Please try again.');
+            this.isLoading = false;
+            this.showForm = true;
+          }
+        });
+    }
+  }
+
+  private addUserMessage(text: string) {
+    this.messages.push({
+      id: ++this.messageId,
+      text,
+      isUser: true,
+      timestamp: new Date()
+    });
+  }
+
+  private addBotMessage(text: string) {
+    this.messages.push({
+      id: ++this.messageId,
+      text,
+      isUser: false,
+      timestamp: new Date()
+    });
   }
 }

@@ -1,0 +1,22 @@
+<mat-card class="chat-container">
+  <mat-card-content>
+    <mat-list class="message-list">
+      <mat-list-item *ngFor="let message of messages">
+        <div [ngClass]="message.sender">
+          <mat-icon matListIcon>{{ message.sender === 'user' ? 'person' : 'android' }}</mat-icon>
+          <div matLine>{{ message.text }}</div>
+        </div>
+      </mat-list-item>
+      <mat-list-item *ngIf="isLoading">
+        <mat-icon matListIcon>hourglass_empty</mat-icon>
+        <div matLine>Bot is thinking...</div>
+      </mat-list-item>
+    </mat-list>
+  </mat-card-content>
+  <mat-card-actions>
+    <mat-form-field appearance="outline" class="input-field">
+      <input matInput placeholder="Describe item, year, and condition (e.g., Item: iPhone 12, Year: 2020, Condition: 8/10)" [(ngModel)]="userInput" (keyup.enter)="sendMessage()">
+    </mat-form-field>
+    <button mat-raised-button color="primary" (click)="sendMessage()" [disabled]="isLoading">Send</button>
+  </mat-card-actions>
+</mat-card>

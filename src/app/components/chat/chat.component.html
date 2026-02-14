@@ -1,63 +1,220 @@
-<div class="chat-container">
-  <div class="chat-messages" #messagesContainer>
-    <app-message
-      *ngFor="let message of messages"
-      [message]="message">
-    </app-message>
-  </div>
+<div class="valuation-container">
+  <!-- TOGGLE BUTTON -->
+  <button
+    class="sidebar-toggle"
+    (click)="toggleSidebar()"
+    [class.collapsed]="sidebarCollapsed"
+    [title]="sidebarCollapsed ? 'Show history' : 'Hide history'">
+    <svg *ngIf="!sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="15 18 9 12 15 6"></polyline>
+    </svg>
+    <svg *ngIf="sidebarCollapsed" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </button>
 
-  <div class="valuation-form" *ngIf="showForm">
-    <h3>Describe your electronic item:</h3>
-    <form (ngSubmit)="submitValuation()">
-      <div class="form-group">
-        <label for="description">Item Description:</label>
-        <textarea
-          id="description"
-          [(ngModel)]="valuationRequest.description"
-          name="description"
-          placeholder="e.g., iPhone 12 Pro Max, 256GB, Space Gray"
-          required></textarea>
+  <!-- SIDEBAR -->
+  <aside class="sidebar" [class.collapsed]="sidebarCollapsed">
+    <div class="sidebar-header">
+      <h2>History</h2>
+      <button class="new-btn" (click)="newEstimation()" [disabled]="isLoading">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+        New
+      </button>
+    </div>
+
+    <div class="estimation-list">
+      <!-- État vide -->
+      <div *ngIf="estimations.length === 0" class="empty-state">
+        <p>No estimations yet</p>
+        <small>Create your first estimation!</small>
       </div>
 
-      <div class="form-group">
-        <label for="year">Year of Manufacture:</label>
-        <input
-          type="number"
-          id="year"
-          [(ngModel)]="valuationRequest.yearOfManufacture"
-          name="yearOfManufacture"
-          min="1900"
-          max="2024"
-          required>
+      <!-- Liste des estimations -->
+      <div
+        *ngFor="let estimation of estimations"
+        class="estimation-item"
+        [class.active]="selectedEstimation?.id === estimation.id"
+        (click)="selectEstimation(estimation)">
+
+        <div class="estimation-header">
+          <h3>{{ estimation.itemName }}</h3>
+          <button
+            class="delete-btn"
+            (click)="deleteEstimation(estimation.id, $event)"
+            title="Delete"
+            [disabled]="isLoading">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+
+        <p class="estimation-brand">{{ estimation.brand }} • {{ estimation.category }}</p>
+
+        <div class="estimation-footer">
+          <span class="price" *ngIf="estimation.estimatedPrice !== null">
+            €{{ estimation.estimatedPrice.toFixed(2) }}
+          </span>
+          <span class="price pending" *ngIf="estimation.estimatedPrice === null">
+            Calculating...
+          </span>
+          <span class="date">{{ formatDate(estimation.createdAt) }}</span>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- FORMULAIRE -->
+    <div class="estimation-form" *ngIf="showForm">
+      <h2>New Valuation</h2>
+      <p class="subtitle">Enter details about your electronic item to get an AI-powered valuation</p>
+
+      <form (ngSubmit)="submitEstimation()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="itemName">Item Name *</label>
+            <input
+              type="text"
+              id="itemName"
+              [(ngModel)]="formData.itemName"
+              name="itemName"
+              placeholder="e.g., iPhone 12 Pro"
+              required
+              [disabled]="isLoading">
+          </div>
+
+          <div class="form-group">
+            <label for="brand">Brand *</label>
+            <input
+              type="text"
+              id="brand"
+              [(ngModel)]="formData.brand"
+              name="brand"
+              placeholder="e.g., Apple"
+              required
+              [disabled]="isLoading">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="category">Category *</label>
+            <select
+              id="category"
+              [(ngModel)]="formData.category"
+              name="category"
+              required
+              [disabled]="isLoading">
+              <option value="">Select category</option>
+              <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="year">Year of Purchase *</label>
+            <input
+              type="number"
+              id="year"
+              [(ngModel)]="formData.year"
+              name="year"
+              min="1990"
+              [max]="2026"
+              required
+              [disabled]="isLoading">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="condition">
+            Condition Rating: {{ formData.conditionRating }}/10
+            <span class="condition-label">({{ getConditionLabel(formData.conditionRating) }})</span>
+          </label>
+          <input
+            type="range"
+            id="condition"
+            [(ngModel)]="formData.conditionRating"
+            name="conditionRating"
+            min="1"
+            max="10"
+            class="slider"
+            [disabled]="isLoading">
+          <div class="slider-labels">
+            <span>Poor</span>
+            <span>Fair</span>
+            <span>Good</span>
+            <span>Excellent</span>
+          </div>
+        </div>
+
+        <button type="submit" class="submit-btn" [disabled]="isLoading || !isFormValid()">
+          <ng-container *ngIf="!isLoading">
+            Get Valuation
+          </ng-container>
+          <span class="loading" *ngIf="isLoading">
+            <svg class="spinner" viewBox="0 0 24 24">
+              <circle class="spinner-circle" cx="12" cy="12" r="10" fill="none" stroke-width="3"></circle>
+            </svg>
+            Analyzing...
+          </span>
+        </button>
+      </form>
+    </div>
+
+    <!-- DÉTAILS DE L'ESTIMATION -->
+    <div class="estimation-details" *ngIf="selectedEstimation && !showForm">
+      <div class="details-header">
+        <div>
+          <h2>{{ selectedEstimation.itemName }}</h2>
+          <p class="meta">{{ selectedEstimation.brand }} • {{ selectedEstimation.category }} • {{ selectedEstimation.year }}</p>
+        </div>
+        <button class="new-btn" (click)="newEstimation()">New Estimation</button>
       </div>
 
-      <div class="form-group">
-        <label for="condition">Condition:</label>
-        <select
-          id="condition"
-          [(ngModel)]="valuationRequest.condition"
-          name="condition"
-          required>
-          <option value="">Select condition</option>
-          <option value="mint">Mint</option>
-          <option value="excellent">Excellent</option>
-          <option value="good">Good</option>
-          <option value="fair">Fair</option>
-          <option value="poor">Poor</option>
-        </select>
+      <div class="details-grid">
+        <!-- Prix -->
+        <div class="detail-card price-card">
+          <h3>Estimated Price</h3>
+          <div class="price-value" *ngIf="selectedEstimation.estimatedPrice !== null">
+            €{{ selectedEstimation.estimatedPrice.toFixed(2) }}
+          </div>
+          <div class="price-value pending" *ngIf="selectedEstimation.estimatedPrice === null">
+            Calculating...
+          </div>
+        </div>
+
+        <!-- Condition -->
+        <div class="detail-card">
+          <h3>Condition</h3>
+          <div class="condition-display">
+            <div class="condition-bar">
+              <div class="condition-fill" [style.width.%]="selectedEstimation.conditionRating * 10"></div>
+            </div>
+            <span class="condition-text">
+              {{ selectedEstimation.conditionRating }}/10 - {{ getConditionLabel(selectedEstimation.conditionRating) }}
+            </span>
+          </div>
+        </div>
       </div>
 
-      <button type="submit" [disabled]="isLoading">Get Valuation</button>
-    </form>
-  </div>
+      <!-- Description AI -->
+      <div class="detail-card description-card">
+        <h3>AI Description</h3>
+        <div class="description-content">
+          <p>{{ selectedEstimation.aiDescription }}</p>
+        </div>
+      </div>
 
-  <div class="chat-input">
-    <input
-      type="text"
-      [(ngModel)]="currentMessage"
-      (keyup.enter)="sendMessage()"
-      placeholder="Type your message..."
-      [disabled]="isLoading">
-    <button (click)="sendMessage()" [disabled]="isLoading">Send</button>
-  </div>
+      <div class="detail-footer">
+        <small>Created on {{ formatDate(selectedEstimation.createdAt) }}</small>
+      </div>
+    </div>
+  </main>
 </div>

@@ -1,111 +1,238 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { MessageComponent } from '../message/message.component';
+import { Subject, takeUntil, finalize } from 'rxjs';
 
-interface Message {
+interface Estimation {
   id: number;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
+  itemName: string;
+  brand: string;
+  category: string;
+  year: number;
+  conditionRating: number;
+  estimatedPrice: number | null;
+  aiDescription: string;
+  createdAt: string;
 }
 
-interface ValuationRequest {
-  description: string;
-  yearOfManufacture: number;
-  condition: string;
-}
-
-interface ValuationResponse {
-  description: string;
-  estimatedProfitability: number;
+interface EstimationRequest {
+  itemName: string;
+  brand: string;
+  category: string;
+  year: number;
+  conditionRating: number;
 }
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, MessageComponent],
+  imports: [CommonModule, FormsModule, HttpClientModule],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.scss']
 })
 export class ChatComponent implements OnInit {
-  messages: Message[] = [];
-  currentMessage = '';
-  showForm = false;
+  // State management
+  estimations: Estimation[] = [];
+  selectedEstimation: Estimation | null = null;
   isLoading = false;
-  valuationRequest: ValuationRequest = {
-    description: '',
-    yearOfManufacture: 0,
-    condition: ''
-  };
+  showForm = true;
+  sidebarCollapsed = false;
 
-  private messageId = 0;
+  // Form data
+  formData: EstimationRequest = this.getEmptyForm();
 
-  constructor(private http: HttpClient) {}
+  readonly categories = [
+    'Smartphone',
+    'Laptop',
+    'Tablet',
+    'Desktop',
+    'Smartwatch',
+    'Camera',
+    'Console',
+    'TV',
+    'Other'
+  ];
 
-  ngOnInit() {
-    this.addBotMessage('Hello! I\'m Smart Valuator. I can help you get detailed descriptions and profitability estimates for electronic items. Would you like to valuate an item?');
+  // Configuration
+  private readonly apiUrl = 'http://localhost:8080/api/estimations';
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private http: HttpClient,
+    private cdr: ChangeDetectorRef
+  ) {}
+
+  // Lifecycle hooks
+  ngOnInit(): void {
+    this.loadEstimations();
   }
 
-  sendMessage() {
-    if (this.currentMessage.trim()) {
-      this.addUserMessage(this.currentMessage);
-      this.processMessage(this.currentMessage);
-      this.currentMessage = '';
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  // Data loading
+  loadEstimations(): void {
+    this.http.get<Estimation[]>(this.apiUrl)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (data) => {
+          this.estimations = this.sortByDate(data);
+          this.updateSelectedEstimation();
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('Failed to load estimations:', error);
+          this.showError('Unable to load estimations. Please refresh the page.');
+        }
+      });
+  }
+
+  // Form submission
+  submitEstimation(): void {
+    if (!this.isFormValid()) {
+      this.showError('Please fill in all required fields.');
+      return;
     }
+
+    this.isLoading = true;
+    this.cdr.detectChanges();
+
+    this.http.post<Estimation>(this.apiUrl, this.formData)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => {
+          this.isLoading = false;
+          this.cdr.detectChanges();
+        })
+      )
+      .subscribe({
+        next: (newEstimation) => {
+          this.estimations = [newEstimation, ...this.estimations];
+          this.selectedEstimation = newEstimation;
+          this.showForm = false;
+          this.formData = this.getEmptyForm();
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('Failed to create estimation:', error);
+          this.showError('Unable to create estimation. Please try again.');
+        }
+      });
   }
 
-  private processMessage(message: string) {
-    const lowerMessage = message.toLowerCase();
+  // User actions
+  selectEstimation(estimation: Estimation): void {
+    this.selectedEstimation = estimation;
+    this.showForm = false;
+    this.cdr.detectChanges();
+  }
 
-    if (lowerMessage.includes('valuate') || lowerMessage.includes('value') || lowerMessage.includes('yes')) {
-      this.showForm = true;
-      this.addBotMessage('Great! Please fill out the form below with details about your electronic item.');
-    } else if (lowerMessage.includes('help')) {
-      this.addBotMessage('I can provide detailed descriptions and estimated profitability for electronic items based on their year of manufacture and condition. Just say "valuate" to get started!');
-    } else {
-      this.addBotMessage('I\'m not sure what you mean. Say "valuate" if you\'d like to get an item valuation, or "help" for more information.');
+  newEstimation(): void {
+    this.selectedEstimation = null;
+    this.showForm = true;
+    this.formData = this.getEmptyForm();
+    this.cdr.detectChanges();
+  }
+
+  toggleSidebar(): void {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
+    this.cdr.detectChanges();
+  }
+
+  deleteEstimation(id: number, event: Event): void {
+    event.stopPropagation();
+
+    if (!confirm('Are you sure you want to delete this estimation?')) {
+      return;
     }
-  }
 
-  submitValuation() {
-    if (this.valuationRequest.description && this.valuationRequest.yearOfManufacture && this.valuationRequest.condition) {
-      this.isLoading = true;
-      this.showForm = false;
-
-      this.http.post<ValuationResponse>('http://localhost:8080/api/estimations', this.valuationRequest)
-        .subscribe({
-          next: (response) => {
-            this.addBotMessage(`Item Description: ${response.description}\n\nEstimated Profitability: $${response.estimatedProfitability.toFixed(2)}`);
-            this.isLoading = false;
-            this.valuationRequest = { description: '', yearOfManufacture: 0, condition: '' };
-          },
-          error: (error) => {
-            console.error('Error:', error);
-            this.addBotMessage('Sorry, I encountered an error while processing your request. Please try again.');
-            this.isLoading = false;
-            this.showForm = true;
+    this.http.delete(`${this.apiUrl}/${id}`)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.estimations = this.estimations.filter(e => e.id !== id);
+          if (this.selectedEstimation?.id === id) {
+            this.newEstimation();
           }
-        });
+          this.cdr.detectChanges();
+        },
+        error: (error) => {
+          console.error('Failed to delete estimation:', error);
+          this.showError('Unable to delete estimation. Please try again.');
+        }
+      });
+  }
+
+  // Validation
+  isFormValid(): boolean {
+    return !!(
+      this.formData.itemName?.trim() &&
+      this.formData.brand?.trim() &&
+      this.formData.category &&
+      this.formData.year >= 1990 &&
+      this.formData.year <= new Date().getFullYear() &&
+      this.formData.conditionRating >= 1 &&
+      this.formData.conditionRating <= 10
+    );
+  }
+
+  // Formatting helpers
+  getConditionLabel(rating: number): string {
+    if (rating >= 9) return 'Excellent';
+    if (rating >= 7) return 'Very Good';
+    if (rating >= 5) return 'Good';
+    if (rating >= 3) return 'Fair';
+    return 'Poor';
+  }
+
+  formatDate(dateStr: string): string {
+    if (!dateStr) return '';
+
+    const date = new Date(dateStr);
+    const dateFormat = date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    const timeFormat = date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+
+    return `${dateFormat} ${timeFormat}`;
+  }
+
+  // Private helpers
+  private sortByDate(estimations: Estimation[]): Estimation[] {
+    return [...estimations].sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  private updateSelectedEstimation(): void {
+    if (!this.selectedEstimation) return;
+
+    const updated = this.estimations.find(e => e.id === this.selectedEstimation!.id);
+    if (updated) {
+      this.selectedEstimation = updated;
+      this.cdr.detectChanges();
     }
   }
 
-  private addUserMessage(text: string) {
-    this.messages.push({
-      id: ++this.messageId,
-      text,
-      isUser: true,
-      timestamp: new Date()
-    });
+  private getEmptyForm(): EstimationRequest {
+    return {
+      itemName: '',
+      brand: '',
+      category: '',
+      year: new Date().getFullYear(),
+      conditionRating: 5
+    };
   }
 
-  private addBotMessage(text: string) {
-    this.messages.push({
-      id: ++this.messageId,
-      text,
-      isUser: false,
-      timestamp: new Date()
-    });
+  private showError(message: string): void {
+    alert(message);
   }
 }

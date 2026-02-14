@@ -458,13 +458,13 @@ This project demonstrates:
 - No export functionality (CSV, PDF)
 
 ### Planned Features
-- 🔄 User authentication with Spring Security
-- 📊 Advanced analytics dashboard
-- 📸 Image upload for better AI accuracy
-- 💱 Multi-currency support
-- 📱 Mobile app (iOS/Android)
-- 🔔 Price alerts for market changes
-- 📄 PDF report generation
+- User authentication with Spring Security
+- Advanced analytics dashboard
+- Image upload for better AI accuracy
+- Multi-currency support
+- Mobile app (iOS/Android)
+- Price alerts for market changes
+- PDF report generation
 
 ---
 

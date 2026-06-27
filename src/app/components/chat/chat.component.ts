@@ -85,7 +85,7 @@ export class ChatComponent implements OnInit {
         },
         error: (error) => {
           console.error('Failed to load estimations:', error);
-          this.showError('Unable to load estimations. Please refresh the page.');
+          this.showError('Impossible de charger les estimations. Veuillez rafraîchir la page.');
         }
       });
   }
@@ -93,7 +93,7 @@ export class ChatComponent implements OnInit {
   // Form submission
   submitEstimation(): void {
     if (!this.isFormValid()) {
-      this.showError('Please fill in all required fields.');
+      this.showError('Veuillez remplir tous les champs obligatoires.');
       return;
     }
 
@@ -118,7 +118,7 @@ export class ChatComponent implements OnInit {
         },
         error: (error) => {
           console.error('Failed to create estimation:', error);
-          this.showError('Unable to create estimation. Please try again.');
+          this.showError('Impossible de créer l\'estimation. Veuillez réessayer.');
         }
       });
   }
@@ -145,7 +145,7 @@ export class ChatComponent implements OnInit {
   deleteEstimation(id: number, event: Event): void {
     event.stopPropagation();
 
-    if (!confirm('Are you sure you want to delete this estimation?')) {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer cette estimation ?')) {
       return;
     }
 
@@ -161,7 +161,7 @@ export class ChatComponent implements OnInit {
         },
         error: (error) => {
           console.error('Failed to delete estimation:', error);
-          this.showError('Unable to delete estimation. Please try again.');
+          this.showError('Impossible de supprimer l\'estimation. Veuillez réessayer.');
         }
       });
   }
@@ -182,10 +182,10 @@ export class ChatComponent implements OnInit {
   // Formatting helpers
   getConditionLabel(rating: number): string {
     if (rating >= 9) return 'Excellent';
-    if (rating >= 7) return 'Very Good';
-    if (rating >= 5) return 'Good';
-    if (rating >= 3) return 'Fair';
-    return 'Poor';
+    if (rating >= 7) return 'Très bon';
+    if (rating >= 5) return 'Bon';
+    if (rating >= 3) return 'Passable';
+    return 'Mauvais';
   }
 
   formatDate(dateStr: string): string {

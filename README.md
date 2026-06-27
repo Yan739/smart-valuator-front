@@ -4,10 +4,11 @@
 
 ![Angular](https://img.shields.io/badge/Angular-18-red?logo=angular&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue?logo=typescript&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-brightgreen?logo=springboot&logoColor=white)
-![Java](https://img.shields.io/badge/Java-21-orange?logo=openjdk&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-brightgreen)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.2-brightgreen?logo=springboot&logoColor=white)
+![Java](https://img.shields.io/badge/Java-17+-orange?logo=openjdk&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-blue?logo=postgresql&logoColor=white)
+![AI](https://img.shields.io/badge/AI-Llama%203.3-orange?logo=meta&logoColor=white)
+![Hugging Face](https://img.shields.io/badge/🤗-Hugging%20Face-yellow)
 
 </div>
 
@@ -15,7 +16,7 @@
 
 ## Description
 
-A **premium AI-powered electronic item valuation platform** built with **Angular 18** and **Spring Boot 3.4** to provide instant, accurate price estimates for used electronics. This full-stack application demonstrates modern web development practices with a clean architecture and intelligent backend integration.
+A **premium AI-powered electronic item valuation platform** built with **Angular 18** and **Spring Boot 4.0.2** to provide instant, accurate price estimates for used electronics. This full-stack application demonstrates modern web development practices with a clean architecture and intelligent backend integration.
 
 Features an elegant, minimalist design with real-time AI valuation, persistent data storage, and a reactive frontend architecture using RxJS for seamless state management.
 
@@ -24,7 +25,7 @@ Features an elegant, minimalist design with real-time AI valuation, persistent d
 ## Features
 
 - **AI-Powered Valuation Engine**
-  - Real-time price estimation using Claude AI
+  - Real-time price estimation using Llama 3.3-70B via Hugging Face
   - Context-aware analysis based on brand, category, and condition
   - Detailed AI-generated item descriptions
   - Market-adjusted pricing for European market (EUR)
@@ -37,7 +38,7 @@ Features an elegant, minimalist design with real-time AI valuation, persistent d
 
 - **Data Management**
   - Persistent estimation history with PostgreSQL
-  - Instant CRUD operations (Create, Read, Delete)
+  - Instant CRUD operations (Create, Read, Update, Delete)
   - Automatic sorting by creation date
   - Session-based data synchronization
 
@@ -65,11 +66,11 @@ Features an elegant, minimalist design with real-time AI valuation, persistent d
 
 | Technology | Version | Purpose |
 |---|---|---|
-| Spring Boot | 3.4.1 | Backend framework |
-| Java | 21 | Application runtime |
-| PostgreSQL | 16 | Relational database |
-| Hibernate | 6.4 | ORM layer |
-| Anthropic API | Claude 3.7 Sonnet | AI valuation engine |
+| Spring Boot | 4.0.2 | Backend framework |
+| Java | 17+ | Application runtime |
+| PostgreSQL | - | Relational database |
+| tools.jackson (Jackson 3.x) | bundled with Spring Boot 4 | JSON serialization |
+| Hugging Face API | Llama 3.3-70B | AI valuation engine |
 
 ---
 
@@ -98,18 +99,23 @@ smart-valuator-front/
 ### Backend
 
 ```
-smart-valuator-back/
+smart-valuator-api/
 │
-├── src/main/java/com/valuator/
+├── src/main/java/com/yann/smart_valuator_api/
 │   ├── controller/
 │   │   └── EstimationController.java     → REST API endpoints
 │   ├── service/
 │   │   ├── EstimationService.java        → Business logic
-│   │   └── ClaudeAIService.java          → AI integration
-│   ├── model/
-│   │   └── Estimation.java               → Entity model
-│   └── repository/
-│       └── EstimationRepository.java     → Data access layer
+│   │   └── HuggingFaceService.java       → AI integration
+│   ├── entity/
+│   │   └── Estimation.java               → JPA entity
+│   ├── repository/
+│   │   └── EstimationRepository.java     → Data access layer
+│   ├── DTO/
+│   │   ├── AiEstimationResult.java       → AI response DTO
+│   │   └── ChatCompletionRequest.java    → Hugging Face request DTO
+│   └── config/
+│       └── JacksonConfig.java            → JSON configuration
 ├── src/main/resources/
 │   └── application.properties            → Configuration
 └── pom.xml                               → Maven dependencies
@@ -132,9 +138,9 @@ Spring Boot Backend
     │
     ├─→ EstimationController receives request
     ├─→ EstimationService validates data
-    ├─→ ClaudeAIService calls Anthropic API
+    ├─→ HuggingFaceService calls Llama 3.3-70B API
     ├─→ Parse AI response (price + description)
-    ├─→ Save to PostgreSQL via Hibernate
+    ├─→ Save to PostgreSQL
     ├─→ Return Estimation entity
     │
     ↓
@@ -198,9 +204,9 @@ Components (UI Layer)
 ### Prerequisites
 
 - Node.js 18+
-- Java 21
-- PostgreSQL 16+
-- Anthropic API Key
+- Java 17+
+- PostgreSQL
+- Hugging Face API Key
 
 ### Frontend Setup
 
@@ -226,16 +232,16 @@ http://localhost:4200
 ### Backend Setup
 
 ```bash
-cd smart-valuator-back
+cd smart-valuator-api
 
 # Configure database
 # Edit src/main/resources/application.properties
-spring.datasource.url=jdbc:postgresql://localhost:5432/valuator_db
-spring.datasource.username=your_username
-spring.datasource.password=your_password
+spring.datasource.url=jdbc:postgresql://localhost:5432/smartvaluator
+spring.datasource.username=smartvaluator
+spring.datasource.password=smartvaluator
 
-# Add Anthropic API key
-anthropic.api.key=your_api_key_here
+# Set Hugging Face API key as environment variable
+export HF_API_KEY=your_huggingface_api_key
 
 # Run application
 ./mvnw spring-boot:run
@@ -253,9 +259,9 @@ npm run build
 # Output: dist/
 
 # Backend
-cd smart-valuator-back
+cd smart-valuator-api
 ./mvnw clean package
-# Output: target/smart-valuator.jar
+# Output: target/smart-valuator-api-0.0.1-SNAPSHOT.jar
 ```
 
 ---
@@ -268,7 +274,8 @@ cd smart-valuator-back
 |---|---|---|---|---|
 | `GET` | `/api/estimations` | Get all estimations | — | `Estimation[]` |
 | `GET` | `/api/estimations/{id}` | Get single estimation | — | `Estimation` |
-| `POST` | `/api/estimations` | Create estimation | `EstimationRequest` | `Estimation` |
+| `POST` | `/api/estimations` | Create estimation + AI valuation | `Estimation` | `Estimation` |
+| `PUT` | `/api/estimations/{id}` | Update estimation | `Estimation` | `Estimation` |
 | `DELETE` | `/api/estimations/{id}` | Delete estimation | — | `204 No Content` |
 
 ### Request Example
@@ -294,8 +301,8 @@ POST /api/estimations
   "category": "Smartphone",
   "year": 2020,
   "conditionRating": 8,
-  "estimatedPrice": 450.00,
-  "aiDescription": "Used iPhone 12 Pro in very good condition...",
+  "estimatedPrice": 224.00,
+  "aiDescription": "Used iPhone 12 Pro in very good condition (8/10)...",
   "createdAt": "2026-02-14T15:30:00"
 }
 ```
@@ -308,13 +315,13 @@ POST /api/estimations
 
 | Column | Type | Constraints |
 |---|---|---|
-| `id` | BIGINT | PRIMARY KEY, AUTO_INCREMENT |
+| `id` | SERIAL | PRIMARY KEY |
 | `item_name` | VARCHAR(255) | NOT NULL |
-| `brand` | VARCHAR(255) | NOT NULL |
-| `category` | VARCHAR(100) | NOT NULL |
+| `brand` | VARCHAR(100) | — |
+| `category` | VARCHAR(100) | — |
 | `year` | INTEGER | NOT NULL |
-| `condition_rating` | INTEGER | NOT NULL (1-10) |
-| `estimated_price` | DECIMAL(10,2) | NULLABLE |
+| `condition_rating` | INTEGER | CHECK (1–10) |
+| `estimated_price` | NUMERIC(10,2) | NULLABLE |
 | `ai_description` | TEXT | NULLABLE |
 | `created_at` | TIMESTAMP | DEFAULT NOW() |
 
@@ -381,20 +388,17 @@ ngOnDestroy(): void {
 
 ```java
 @Service
-@Transactional
+@AllArgsConstructor
 public class EstimationService {
-    
-    @Autowired
-    private EstimationRepository repository;
-    
-    @Autowired
-    private ClaudeAIService aiService;
-    
-    public Estimation createEstimation(EstimationRequest request) {
-        // Business logic
-        AIResponse aiResponse = aiService.getValuation(request);
-        Estimation estimation = mapToEntity(request, aiResponse);
-        return repository.save(estimation);
+
+    private final EstimationRepository estimationRepository;
+    private final HuggingFaceService huggingFaceService;
+
+    public Estimation generateAiEstimation(Estimation estimation) {
+        AiEstimationResult aiResult = huggingFaceService.generateStructuredEstimation(productDetails);
+        estimation.setAiDescription(aiResult.getDescription());
+        estimation.setEstimatedPrice(aiResult.getEstimatedPrice());
+        return estimationRepository.save(estimation);
     }
 }
 ```
@@ -402,11 +406,8 @@ public class EstimationService {
 #### Repository Pattern
 
 ```java
-@Repository
-public interface EstimationRepository 
-    extends JpaRepository<Estimation, Long> {
-    
-    List<Estimation> findAllByOrderByCreatedAtDesc();
+public interface EstimationRepository extends JpaRepository<Estimation, Long> {
+    Estimation findByItemName(String itemName);
 }
 ```
 
@@ -427,13 +428,13 @@ This project demonstrates:
 - ✅ **Unit Testing** with HttpClientTestingModule
 
 ### Backend
-- ✅ **RESTful API Design** with Spring Boot
+- ✅ **RESTful API Design** with Spring Boot 4
 - ✅ **Service Layer Pattern** for clean architecture
-- ✅ **JPA/Hibernate** for ORM
-- ✅ **External API Integration** (Anthropic Claude)
-- ✅ **JSON Parsing** with Jackson
+- ✅ **Spring Data JPA** for persistence
+- ✅ **External API Integration** (Hugging Face — Llama 3.3-70B)
+- ✅ **JSON Parsing** with tools.jackson (Jackson 3.x)
 - ✅ **CORS Configuration** for cross-origin requests
-- ✅ **Exception Handling** with proper HTTP status codes
+- ✅ **Centralized Exception Handling** with proper HTTP status codes
 
 ---
 
@@ -473,11 +474,12 @@ This project demonstrates:
 Created as a **full-stack learning project** to:
 
 1. Practice modern Angular development (v18+)
-2. Integrate AI services (Anthropic Claude) into web apps
+2. Integrate AI services (Hugging Face — Llama 3.3-70B) into web apps
 3. Build a production-quality Spring Boot REST API
 4. Explore reactive programming across the stack
 5. Solve the problem of uncertain used electronics pricing
 6. Demonstrate clean architecture principles
 
 ---
+
 *Personal project — public — no restrictive license.*

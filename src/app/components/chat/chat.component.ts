@@ -2,110 +2,131 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient, HttpClientModule } from '@angular/common/http';
-import { MessageComponent } from '../message/message.component';
 
-interface Message {
+interface Estimation {
   id: number;
-  text: string;
-  isUser: boolean;
-  timestamp: Date;
+  itemName: string;
+  brand: string;
+  category: string;
+  year: number;
+  conditionRating: number;
+  estimatedPrice: number | null;
+  aiDescription: string;
+  createdAt: string;
 }
 
-interface ValuationRequest {
-  description: string;
-  yearOfManufacture: number;
-  condition: string;
-}
-
-interface ValuationResponse {
-  description: string;
-  estimatedProfitability: number;
+interface EstimationForm {
+  itemName: string;
+  brand: string;
+  category: string;
+  year: number;
+  conditionRating: number;
 }
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, MessageComponent],
+  imports: [CommonModule, FormsModule, HttpClientModule],
   templateUrl: './chat.component.html',
   styleUrls: ['./chat.component.scss']
 })
 export class ChatComponent implements OnInit {
-  messages: Message[] = [];
-  currentMessage = '';
-  showForm = false;
+  estimations: Estimation[] = [];
+  selectedEstimation: Estimation | null = null;
+  showForm = true;
   isLoading = false;
-  valuationRequest: ValuationRequest = {
-    description: '',
-    yearOfManufacture: 0,
-    condition: ''
+  sidebarCollapsed = false;
+
+  formData: EstimationForm = {
+    itemName: '',
+    brand: '',
+    category: '',
+    year: new Date().getFullYear(),
+    conditionRating: 7
   };
-  
-  private messageId = 0;
-  
+
+  categories = ['Smartphone', 'Laptop', 'Tablette', 'Montre connectée', 'Console de jeu', 'Écouteurs', 'Appareil photo', 'Autre'];
+
+  private readonly apiUrl = 'http://localhost:8080/api/estimations';
+
   constructor(private http: HttpClient) {}
-  
+
   ngOnInit() {
-    this.addBotMessage('Hello! I\'m Smart Valuator. I can help you get detailed descriptions and profitability estimates for electronic items. Would you like to valuate an item?');
+    this.loadEstimations();
   }
-  
-  sendMessage() {
-    if (this.currentMessage.trim()) {
-      this.addUserMessage(this.currentMessage);
-      this.processMessage(this.currentMessage);
-      this.currentMessage = '';
-    }
+
+  toggleSidebar() {
+    this.sidebarCollapsed = !this.sidebarCollapsed;
   }
-  
-  private processMessage(message: string) {
-    const lowerMessage = message.toLowerCase();
-    
-    if (lowerMessage.includes('valuate') || lowerMessage.includes('value') || lowerMessage.includes('yes')) {
-      this.showForm = true;
-      this.addBotMessage('Great! Please fill out the form below with details about your electronic item.');
-    } else if (lowerMessage.includes('help')) {
-      this.addBotMessage('I can provide detailed descriptions and estimated profitability for electronic items based on their year of manufacture and condition. Just say "valuate" to get started!');
-    } else {
-      this.addBotMessage('I\'m not sure what you mean. Say "valuate" if you\'d like to get an item valuation, or "help" for more information.');
-    }
+
+  newEstimation() {
+    this.selectedEstimation = null;
+    this.showForm = true;
+    this.formData = { itemName: '', brand: '', category: '', year: new Date().getFullYear(), conditionRating: 7 };
   }
-  
-  submitValuation() {
-    if (this.valuationRequest.description && this.valuationRequest.yearOfManufacture && this.valuationRequest.condition) {
-      this.isLoading = true;
-      this.showForm = false;
-      
-      this.http.post<ValuationResponse>('http://localhost:8080/api/valuate', this.valuationRequest)
-        .subscribe({
-          next: (response) => {
-            this.addBotMessage(`Item Description: ${response.description}\n\nEstimated Profitability: $${response.estimatedProfitability.toFixed(2)}`);
-            this.isLoading = false;
-            this.valuationRequest = { description: '', yearOfManufacture: 0, condition: '' };
-          },
-          error: (error) => {
-            console.error('Error:', error);
-            this.addBotMessage('Sorry, I encountered an error while processing your request. Please try again.');
-            this.isLoading = false;
-            this.showForm = true;
-          }
-        });
-    }
+
+  selectEstimation(estimation: Estimation) {
+    this.selectedEstimation = estimation;
+    this.showForm = false;
   }
-  
-  private addUserMessage(text: string) {
-    this.messages.push({
-      id: ++this.messageId,
-      text,
-      isUser: true,
-      timestamp: new Date()
+
+  isFormValid(): boolean {
+    return !!(this.formData.itemName && this.formData.brand && this.formData.category && this.formData.year);
+  }
+
+  submitEstimation() {
+    if (!this.isFormValid()) return;
+    this.isLoading = true;
+
+    this.http.post<Estimation>(this.apiUrl, this.formData).subscribe({
+      next: (result) => {
+        this.estimations.unshift(result);
+        this.selectedEstimation = result;
+        this.showForm = false;
+        this.isLoading = false;
+      },
+      error: () => {
+        // Backend may have saved despite timeout — reload history
+        this.loadEstimations();
+        this.showForm = false;
+        this.isLoading = false;
+      }
     });
   }
-  
-  private addBotMessage(text: string) {
-    this.messages.push({
-      id: ++this.messageId,
-      text,
-      isUser: false,
-      timestamp: new Date()
+
+  deleteEstimation(id: number, event: Event) {
+    event.stopPropagation();
+    this.http.delete(`${this.apiUrl}/${id}`).subscribe(() => {
+      this.estimations = this.estimations.filter(e => e.id !== id);
+      if (this.selectedEstimation?.id === id) {
+        this.selectedEstimation = null;
+        this.showForm = true;
+      }
+    });
+  }
+
+  priceLabel(estimation: Estimation): string {
+    if (estimation.estimatedPrice !== null) return `€${Number(estimation.estimatedPrice).toFixed(2)}`;
+    if (estimation.aiDescription?.startsWith('Error')) return 'Indisponible';
+    return 'Calcul en cours...';
+  }
+
+  getConditionLabel(rating: number): string {
+    if (rating <= 2) return 'Mauvais';
+    if (rating <= 4) return 'Passable';
+    if (rating <= 6) return 'Correct';
+    if (rating <= 8) return 'Bon';
+    return 'Excellent';
+  }
+
+  formatDate(dateStr: string): string {
+    return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  private loadEstimations() {
+    this.http.get<Estimation[]>(this.apiUrl).subscribe({
+      next: (data) => { this.estimations = data.reverse(); },
+      error: () => {}
     });
   }
 }

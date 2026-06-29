@@ -57,11 +57,8 @@
         <p class="estimation-brand">{{ estimation.brand }} • {{ estimation.category }}</p>
 
         <div class="estimation-footer">
-          <span class="price" *ngIf="estimation.estimatedPrice !== null">
-            €{{ estimation.estimatedPrice.toFixed(2) }}
-          </span>
-          <span class="price pending" *ngIf="estimation.estimatedPrice === null">
-            Calcul en cours...
+          <span class="price" [class.pending]="estimation.estimatedPrice === null">
+            {{ priceLabel(estimation) }}
           </span>
           <span class="date">{{ formatDate(estimation.createdAt) }}</span>
         </div>
